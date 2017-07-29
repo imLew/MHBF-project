@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
-
+import seaborn as sns
+import time
 class Maze(object):
         
     staff_y = [0,60]
@@ -138,14 +138,14 @@ class Agent(object):
         return cells
     
     def input_layer(self):
-        """Compute the activation of the input layer for a given position and state and update the variable
+        """
+        Compute the activation of the input layer for a given position and state and update the variable
         """
         self.newActivation[int(self.alpha)] = np.exp(-np.sum((self.placeCells.T-self.position)**2,axis=1)/(2*self.placeFieldSize**2))        
         self.newActivation[int(not self.alpha)] = 0
         
     def output_layer(self):
         self.newQ = self.weights[:,int(self.alpha)]@self.newActivation[int(self.alpha)]
-#         self.newQ = np.dot(self.weights,self.newActivation.flatten())
         
     def choose_action(self):
         """
@@ -159,8 +159,6 @@ class Agent(object):
     def valid_move(self, newPosition):
             inBar, inStaff = self.maze.rough_location(newPosition)
             valid = inBar or inStaff
-#             horizontal = self.inBar==inBar and inBar
-#             vertical = self.inStaff==inStaff and inStaff
             dx = self.position[0]-newPosition[0]
             dy = self.position[1]-newPosition[1]
             
@@ -297,23 +295,29 @@ def test_place(position):
     plt.show()
 
 def simulation(agent, nTrials = 10, nAgents = 10, nActions = 4, eps0 = 0.9,
-               maxIter = 1e5, decayRate=.95, gamma=.95, eta=.01, epsDecay = .8):
+               maxIter = 1e5, decayRate=.95, gamma=.95, eta=.01, epsDecay = .8, verbose = 0):
+    """
+    Instantiates nAgents number of agents, and runs nTrials number of trials.
+    Returns:
+    cumulativeRewards, latency times, mask of aborted trials (on maxIter).
+    """
     latencies = np.zeros((nAgents, nTrials))
     aborts = np.ones((nAgents,nTrials))*False
     cumulativeRewards = []
     for i in range(nAgents):
         cumulativeReward = []
+        t0 = time.time()
         mouse = agent(eps = eps0, numActions = nActions,decayRate=decayRate, gamma=gamma, eta=eta)
         for j in range(nTrials):
             reward, latencies[i,j], aborts[i,j] = mouse.trial(maxIter=maxIter, epsDecay=epsDecay)
             cumulativeReward.extend(reward)
         cumulativeRewards.append(np.cumsum(cumulativeReward))
+        if verbose:
+            print('mouse #{}: {:.2f} s'.format(i+1, time.time()-t0))
     return cumulativeRewards, latencies, aborts
 
 def plot_learning_curve(latencies, aborts):
     """Simulate nTrials for nAgents and plots the average number of steps taken to complete the maze against the trial number"""
-#     _, latencies, aborts = simulation(agent,nTrials=nTrials, nAgents=nAgents, nActions=nActions, eps0=eps0,
-#                                      maxIter=maxIter, decayRate=decayRate, eta=eta, gamma=gamma, epsDecay=epsDecay)
     nAgents, nTrials = np.shape(latencies)
     mask = np.asarray([np.any(aborts[i])==False for i in range(nAgents)]) #filter out mice that got stuck
     fig, ax = plt.subplots(1,2,figsize=(20,8))
