@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
+# import seaborn as sns
 import time
 class Maze(object):
 
@@ -53,6 +53,10 @@ class Maze(object):
         else:
             return False
 
+    def draw_maze(self):
+        x = [self.staff_x[0],self.staff_x[1],self.staff_x[1],self.bar_x[1],self.bar_x[1],self.bar_x[0],self.bar_x[0],self.staff_x[0],self.staff_x[0]]
+        y = [self.staff_y[0],self.staff_y[0],self.bar_y[0],self.bar_y[0],self.bar_y[1],self.bar_y[1],self.bar_y[0],self.bar_y[0],self.staff_y[0]]
+        plt.plot(x,y,lw=4,c='k')
 
 class Agent(object):
 
@@ -159,20 +163,19 @@ class Agent(object):
     def valid_move(self, newPosition):
             inBar, inStaff = self.maze.rough_location(newPosition)
             valid = inBar or inStaff
-            dx = self.position[0]-newPosition[0]
-            dy = self.position[1]-newPosition[1]
-
-            eps = 1e-10
-            if valid and dx > eps and dy>eps:
+            Bar = self.inBar == inBar and inBar
+            Staff = self.inStaff == inStaff and inStaff
+            
+            if valid and not (Bar or Staff):
                 x, y = line_eq(self.position,newPosition)
                 for xi, yi in zip(x,y):
                     inB, inS = self.maze.rough_location([xi,yi])
                     if not (inB or inS):
                         valid = False
                         break
-            self.inBar = inBar
-            self.inStaff = inStaff
-
+            if valid:
+                self.inBar = inBar
+                self.inStaff = inStaff
             return valid
 
     def check_task(self):
@@ -243,6 +246,7 @@ class Agent(object):
         if plot:
             route = np.asarray(self.route)
             plt.plot(route[:,0], route[:,1])
+            self.maze.draw_maze()
             plt.gca().set_aspect('equal')
             plt.show()
         return self.cumrew, k, aborted
@@ -276,7 +280,7 @@ class Agent(object):
         return locations, vectors
 
 
-def line_eq(a,b, res = 1e4):
+def line_eq(a,b, res = 1e2):
     x = np.linspace(a[0], b[0], int(res))
     m = (b[1]-a[1])/(b[0]-a[0])
     y = m  * (x-b[0]) + b[1]
@@ -286,12 +290,12 @@ def test_place(position):
     mouse = Agent()
     mouse.position=position
     mouse.input_layer()
-    cells = mouse.map
+    cells = mouse.placeCells
     act = mouse.newActivation[0]
+    plt.scatter(position[0],position[1],marker='x',c='r')
     plt.scatter(cells[0],cells[1],c=act)
-    plt.scatter(position[0],position[1],marker='x')
-    plt.axvline(position[0])
-    plt.axhline(position[1])
+    # plt.axvline(position[0])
+    # plt.axhline(position[1])
     plt.show()
 
 def simulation(agent, nTrials = 10, nAgents = 10, nActions = 4, eps0 = 0.9,
@@ -311,6 +315,9 @@ def simulation(agent, nTrials = 10, nAgents = 10, nActions = 4, eps0 = 0.9,
         for j in range(nTrials):
             reward, latencies[i,j], aborts[i,j] = mouse.trial(maxIter=maxIter, epsDecay=epsDecay)
             cumulativeReward.extend(reward)
+            if aborts[i,j]:
+                aborts[i,j:-1] = True
+                break
         cumulativeRewards.append(np.cumsum(cumulativeReward))
         if verbose:
             print('mouse #{}: {:.2f} s'.format(i+1, time.time()-t0))
@@ -336,9 +343,10 @@ def plot_learning_curve(latencies, aborts):
     plt.setp(ax,xticks=np.round(np.linspace(1,nTrials+1,10)),xlim=[0.5,nTrials+.5],xlabel=' number of trial',ylabel='log(escape time) [steps]')
     plt.show()
 
-def plot_cumulative_rewards(cumulativeRewards,aborts, nTrials = 100):
+def plot_cumulative_rewards(cumulativeRewards,aborts, nTrials = 50):
     mask = np.asarray([np.any(aborts[i])==False for i in range(len(aborts))]) #filter out mice that got stuck
     length = 0
+    plt.figure(figsize=(16,6))
     for i, rewards in enumerate(cumulativeRewards):
         if mask[i]:
             plt.plot(rewards,alpha=.6)
