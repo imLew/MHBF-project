@@ -384,3 +384,34 @@ def plot_vectorfield(agent, nTrials = 100, nActions = 4, eps0 = 0.9,
             ax[j,1].set_title('$alpha = 1$',size=14, y = 1.05)
     plt.setp(ax, xticks = [], yticks = [])
     plt.show()
+    
+def plot_latency_lambda(lambdas = [0, 0.5, 0.95]):
+    mean_latencies = []
+    for i, lambda_ in enumerate(lambdas):
+        cumulativeReward, latencies, aborts = simulation(Agent, nTrials = 50, nAgents = 10, nActions = 4, maxIter=1e5,
+                          eps0 = .99,  decayRate = lambda_, gamma = .95, eta = 0.001, verbose = 0);
+        mask = np.asarray([np.any(aborts[i])==False for i in range(10)]) #filter out mice that got stuck
+        mean_latencies.append(latencies[mask].mean(axis = 0))
+    mean_latencies = np.asarray(mean_latencies)
+    plt.figure()
+    plt.bar(np.linspace(min(lambdas), max(lambdas),len(lambdas)), mean_latencies.mean(axis = 1), width=0.2)
+    plt.xticks(lambdas)
+    plt.title('Mean latency over 50 trials (escape time) in steps', fontsize = 14)
+    plt.xlabel('$\lambda$')
+    plt.ylabel('number of steps')
+    plt.show()
+
+def plot_latency_eps(eps_zeros = [0.2, 0.5, 0.99]):
+    mean_latencies = []
+    for i, eps0_ in enumerate(eps_zeros):
+        cumulativeReward, latencies, aborts = simulation(Agent, nTrials = 50, nAgents = 10, nActions = 4, maxIter=1e5,
+                          eps0 = eps0_,  decayRate = 0.95, gamma = .95, eta = 0.001, verbose = 0);
+        mask = np.asarray([np.any(aborts[i])==False for i in range(10)]) #filter out mice that got stuck
+        mean_latencies.append(latencies[mask].mean(axis = 0))
+    mean_latencies = np.asarray(mean_latencies)
+    plt.bar(np.linspace(min(eps_zeros), max(eps_zeros),len(eps_zeros)), mean_latencies.mean(axis = 1), width=0.2)
+    plt.xticks(eps_zeros)
+    plt.title('Mean latency over 50 trials (escape time) in steps', fontsize = 14)
+    plt.xlabel('$\epsilon_0$')
+    plt.ylabel('number of steps')
+    plt.show()
